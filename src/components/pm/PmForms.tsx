@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useFormStatus } from "react-dom";
 import {
   PRODUCTION_TYPES,
@@ -14,6 +14,7 @@ import {
   recordAttendance,
   logNegativeReview,
   logPmBonus,
+  deductPoints,
 } from "@/app/actions";
 
 export interface Member {
@@ -66,20 +67,23 @@ export function CreditEntryForm({ members }: { members: Member[] }) {
   const [category, setCategory] = useState<"production" | "bonus" | "adjustment">("production");
   const [subKey, setSubKey] = useState<string>(PRODUCTION_TYPES[0].key);
 
-  const prodType = PRODUCTION_TYPES.find((p) => p.key === subKey);
+  const [amount, setAmount] = useState<number>(PRODUCTION_TYPES[0].credits ?? 0);
+
   const bonusType = BONUS_TYPES.find((b) => b.key === subKey);
+  const isDiscretionary = category === "bonus" && bonusType?.key === "pm_discretionary";
 
-  const needsManual =
-    category === "adjustment" ||
-    (category === "production" && prodType?.credits == null) ||
-    (category === "bonus" && bonusType?.key === "pm_discretionary");
-
-  const autoCredits =
+  const suggested =
     category === "production"
-      ? prodType?.credits ?? null
+      ? PRODUCTION_TYPES.find((p) => p.key === subKey)?.credits ?? null
       : category === "bonus"
         ? bonusType?.credits ?? null
         : null;
+
+  // Pre-fill the editable amount with the SOP suggestion when type/category changes.
+  useEffect(() => {
+    setAmount(suggested ?? 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [category, subKey]);
 
   return (
     <form action={addCreditEntry} className="space-y-3">
@@ -143,22 +147,24 @@ export function CreditEntryForm({ members }: { members: Member[] }) {
         </div>
       )}
 
-      {needsManual ? (
-        <div>
-          <label className={labelCls}>
-            {category === "adjustment"
-              ? "Credits (can be negative)"
-              : bonusType?.key === "pm_discretionary"
-                ? `Credits (0–${PM_DISCRETIONARY_MAX})`
-                : "Credits (PM assigned)"}
-          </label>
-          <input type="number" name="amount" defaultValue={0} className={inputCls} />
-        </div>
-      ) : (
-        <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">
-          Auto credits: <span className="font-semibold text-slate-800">+{autoCredits}</span> (per SOP)
-        </p>
-      )}
+      <div>
+        <label className={labelCls}>
+          Credits{category === "adjustment" ? " (can be negative)" : isDiscretionary ? ` (0–${PM_DISCRETIONARY_MAX})` : ""}
+        </label>
+        <input
+          type="number"
+          name="amount"
+          value={amount}
+          onChange={(e) => setAmount(Number(e.target.value))}
+          className={inputCls}
+        />
+        {suggested != null && (
+          <p className="mt-1 text-xs text-slate-500">
+            SOP suggests <span className="font-semibold text-slate-700">+{suggested}</span>
+            {isDiscretionary ? " (max)" : ""} — change it to any value you want.
+          </p>
+        )}
+      </div>
 
       <div>
         <label className={labelCls}>Note (optional)</label>
@@ -235,6 +241,32 @@ export function NegativeReviewForm({ members }: { members: Member[] }) {
       </div>
       <p className="text-xs text-slate-500">Applies a −4 penalty (§4.3).</p>
       <SubmitButton>Log negative review</SubmitButton>
+    </form>
+  );
+}
+
+export function DeductPointsForm({ members }: { members: Member[] }) {
+  return (
+    <form action={deductPoints} className="space-y-3">
+      <MemberSelect members={members} />
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className={labelCls}>Points to deduct</label>
+          <input type="number" name="amount" min={1} defaultValue={1} className={inputCls} />
+        </div>
+        <div>
+          <label className={labelCls}>Month</label>
+          <input type="month" name="month" defaultValue={currentMonth()} className={inputCls} />
+        </div>
+      </div>
+      <div>
+        <label className={labelCls}>Reason</label>
+        <input name="note" required className={inputCls} placeholder="e.g. late delivery, quality issue" />
+      </div>
+      <p className="text-xs text-slate-500">
+        Enter a positive number — it is deducted from this month&apos;s credits (shown red in the ledger).
+      </p>
+      <SubmitButton>Deduct points</SubmitButton>
     </form>
   );
 }

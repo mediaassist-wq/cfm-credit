@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth";
 import {
-  PRODUCTION_TYPES,
   BONUS_TYPES,
   PM_DISCRETIONARY_MAX,
   type CreditCategory,
@@ -38,14 +37,15 @@ export async function addCreditEntry(formData: FormData) {
   let subcategory: string | null = subKey || null;
 
   if (category === "production") {
-    const t = PRODUCTION_TYPES.find((p) => p.key === subKey);
-    credits = t?.credits ?? manualAmount; // null-credit types are PM-assigned
+    // Amount is editable in the UI (pre-filled with the SOP suggestion), so
+    // trust the submitted value.
+    credits = manualAmount;
   } else if (category === "bonus") {
     const b = BONUS_TYPES.find((x) => x.key === subKey);
     if (b?.key === "pm_discretionary") {
       credits = Math.max(0, Math.min(PM_DISCRETIONARY_MAX, manualAmount));
     } else {
-      credits = b?.credits ?? manualAmount;
+      credits = manualAmount;
     }
   } else if (category === "adjustment") {
     credits = manualAmount; // may be negative (offsetting correction)
@@ -63,6 +63,38 @@ export async function addCreditEntry(formData: FormData) {
     subcategory,
     credits,
     note,
+    created_by: me.id,
+  });
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/pm");
+  revalidatePath("/management");
+  revalidatePath(`/users/${userId}`);
+}
+
+/**
+ * Manually deduct points from an executive (manager's discretion). Enter a
+ * positive amount; it is stored as a negative penalty entry.
+ */
+export async function deductPoints(formData: FormData) {
+  const me = await getCurrentUser();
+  const supabase = createClient();
+
+  const userId = String(formData.get("user_id") ?? "");
+  const amount = Math.abs(Number(formData.get("amount") ?? 0));
+  const reason = String(formData.get("note") ?? "").trim() || "Manual deduction";
+  const month = monthToFirst(formData.get("month") as string | null);
+
+  if (!(amount > 0)) throw new Error("Enter how many points to deduct.");
+
+  const { error } = await supabase.from("credit_entries").insert({
+    org_id: me.org_id,
+    user_id: userId,
+    month,
+    category: "penalty",
+    subcategory: "manual_deduction",
+    credits: -amount,
+    note: reason,
     created_by: me.id,
   });
   if (error) throw new Error(error.message);

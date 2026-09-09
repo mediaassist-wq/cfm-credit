@@ -15,6 +15,7 @@ import {
   FlagForm,
   AttendanceForm,
   NegativeReviewForm,
+  DeductPointsForm,
   PmBonusForm,
   type Member,
 } from "@/components/pm/PmForms";
@@ -109,6 +110,7 @@ export default async function PmDashboard() {
           <Tabs
             tabs={[
               { label: "Credit entry", content: <CreditEntryForm members={members} /> },
+              { label: "Deduct points", content: <DeductPointsForm members={members} /> },
               { label: "Issue flag", content: <FlagForm members={members} /> },
               { label: "Attendance", content: <AttendanceForm members={members} /> },
               { label: "Negative review", content: <NegativeReviewForm members={members} /> },
