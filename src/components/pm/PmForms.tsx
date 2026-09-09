@@ -1,12 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useFormStatus } from "react-dom";
-import {
-  PRODUCTION_TYPES,
-  BONUS_TYPES,
-  PM_DISCRETIONARY_MAX,
-} from "@/lib/credit-rules";
 import { pmNetBonus } from "@/lib/tier-logic";
 import {
   addCreditEntry,
@@ -65,26 +60,6 @@ function MemberSelect({ members }: { members: Member[] }) {
 
 export function CreditEntryForm({ members }: { members: Member[] }) {
   const [category, setCategory] = useState<"production" | "bonus" | "adjustment">("production");
-  const [subKey, setSubKey] = useState<string>(PRODUCTION_TYPES[0].key);
-
-  const [amount, setAmount] = useState<number>(PRODUCTION_TYPES[0].credits ?? 0);
-
-  const bonusType = BONUS_TYPES.find((b) => b.key === subKey);
-  const isDiscretionary = category === "bonus" && bonusType?.key === "pm_discretionary";
-
-  const suggested =
-    category === "production"
-      ? PRODUCTION_TYPES.find((p) => p.key === subKey)?.credits ?? null
-      : category === "bonus"
-        ? bonusType?.credits ?? null
-        : null;
-
-  // Pre-fill the editable amount with the SOP suggestion when type/category changes.
-  useEffect(() => {
-    setAmount(suggested ?? 0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [category, subKey]);
-
   return (
     <form action={addCreditEntry} className="space-y-3">
       <MemberSelect members={members} />
@@ -96,17 +71,7 @@ export function CreditEntryForm({ members }: { members: Member[] }) {
             name="category"
             className={inputCls}
             value={category}
-            onChange={(e) => {
-              const c = e.target.value as typeof category;
-              setCategory(c);
-              setSubKey(
-                c === "production"
-                  ? PRODUCTION_TYPES[0].key
-                  : c === "bonus"
-                    ? BONUS_TYPES[0].key
-                    : "",
-              );
-            }}
+            onChange={(e) => setCategory(e.target.value as typeof category)}
           >
             <option value="production">Production</option>
             <option value="bonus">Bonus</option>
@@ -119,51 +84,21 @@ export function CreditEntryForm({ members }: { members: Member[] }) {
         </div>
       </div>
 
-      {category !== "adjustment" && (
-        <div>
-          <label className={labelCls}>Type</label>
-          <select
-            name="subcategory"
-            className={inputCls}
-            value={subKey}
-            onChange={(e) => setSubKey(e.target.value)}
-          >
-            {(category === "production" ? PRODUCTION_TYPES : BONUS_TYPES).map((t) => (
-              <option key={t.key} value={t.key}>
-                {t.label}
-                {"credits" in t && t.credits != null
-                  ? ` (+${t.credits}${"isMax" in t && t.isMax ? " max" : ""})`
-                  : " (PM assigned)"}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-
-      {category === "adjustment" && (
-        <div>
-          <label className={labelCls}>Label</label>
-          <input name="subcategory" placeholder="e.g. correction" className={inputCls} />
-        </div>
-      )}
+      <div>
+        <label className={labelCls}>Project name</label>
+        <input
+          name="subcategory"
+          required
+          placeholder="e.g. Acme YouTube — Episode 12"
+          className={inputCls}
+        />
+      </div>
 
       <div>
         <label className={labelCls}>
-          Credits{category === "adjustment" ? " (can be negative)" : isDiscretionary ? ` (0–${PM_DISCRETIONARY_MAX})` : ""}
+          Credits{category === "adjustment" ? " (can be negative)" : ""}
         </label>
-        <input
-          type="number"
-          name="amount"
-          value={amount}
-          onChange={(e) => setAmount(Number(e.target.value))}
-          className={inputCls}
-        />
-        {suggested != null && (
-          <p className="mt-1 text-xs text-slate-500">
-            SOP suggests <span className="font-semibold text-slate-700">+{suggested}</span>
-            {isDiscretionary ? " (max)" : ""} — change it to any value you want.
-          </p>
-        )}
+        <input type="number" name="amount" defaultValue={0} className={inputCls} />
       </div>
 
       <div>
