@@ -16,8 +16,19 @@ const MEDAL = ["🥇", "🥈", "🥉"];
 /**
  * 6-month cumulative credit leaderboard (PRD §5.4 — Best Executive Award).
  * Ranked by total credits over the trailing 6 months.
+ *
+ * `highlightUserId` marks the viewer's own row ("You"); `linkProfiles` makes
+ * each name a link to that profile (off for executives, who can't open peers).
  */
-export function Leaderboard({ rows }: { rows: LeaderboardRow[] }) {
+export function Leaderboard({
+  rows,
+  highlightUserId,
+  linkProfiles = true,
+}: {
+  rows: LeaderboardRow[];
+  highlightUserId?: string;
+  linkProfiles?: boolean;
+}) {
   if (rows.length === 0) {
     return <p className="py-8 text-center text-sm text-slate-400">No executives to rank yet.</p>;
   }
@@ -28,13 +39,16 @@ export function Leaderboard({ rows }: { rows: LeaderboardRow[] }) {
     <ol className="space-y-2">
       {rows.map((r, i) => {
         const isNominee = i === 0 && r.total6mo > 0;
+        const isYou = r.userId === highlightUserId;
         return (
           <li
             key={r.userId}
             className={`flex items-center gap-3 rounded-xl px-3 py-2.5 ring-1 ${
-              isNominee
-                ? "bg-amber-50 ring-amber-200"
-                : "bg-slate-50 ring-slate-100"
+              isYou
+                ? "bg-blue-50 ring-blue-300"
+                : isNominee
+                  ? "bg-amber-50 ring-amber-200"
+                  : "bg-slate-50 ring-slate-100"
             }`}
           >
             <span className="w-7 text-center text-sm font-semibold text-slate-500">
@@ -43,9 +57,18 @@ export function Leaderboard({ rows }: { rows: LeaderboardRow[] }) {
             <TierBadge tier={r.tier} size="sm" />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <Link href={`/users/${r.userId}`} className="truncate text-sm font-medium text-slate-900 hover:underline">
-                  {r.name}
-                </Link>
+                {linkProfiles ? (
+                  <Link href={`/users/${r.userId}`} className="truncate text-sm font-medium text-slate-900 hover:underline">
+                    {r.name}
+                  </Link>
+                ) : (
+                  <span className="truncate text-sm font-medium text-slate-900">{r.name}</span>
+                )}
+                {isYou && (
+                  <span className="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-700">
+                    You
+                  </span>
+                )}
                 {isNominee && (
                   <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
                     Award nominee

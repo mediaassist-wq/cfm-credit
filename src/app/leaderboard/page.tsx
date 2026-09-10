@@ -1,6 +1,6 @@
-import { redirect } from "next/navigation";
-import { getCurrentUser, homePathForRole } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { createAdmin } from "@/lib/supabase/admin";
 import { lastNMonths } from "@/lib/dates";
 import type { AppUser } from "@/lib/types";
 
@@ -12,29 +12,28 @@ export const dynamic = "force-dynamic";
 
 export default async function LeaderboardPage() {
   const me = await getCurrentUser();
-  if (me.role !== "management" && me.role !== "pm") {
-    redirect(homePathForRole(me.role));
-  }
-
-  const supabase = createClient();
   const months = lastNMonths(6);
   const earliest = months[0];
 
-  // A PM sees their own team; management sees all executives.
-  let execQuery = supabase
-    .from("users")
-    .select("id, name, current_tier")
-    .eq("role", "executive")
-    .eq("active", true);
-  if (me.role === "pm") execQuery = execQuery.eq("pm_id", me.id);
+  const orgName =
+    (await createClient().from("organizations").select("name").eq("id", me.org_id).single()).data
+      ?.name as string | undefined;
 
-  const [orgRes, execRes, entriesRes] = await Promise.all([
-    supabase.from("organizations").select("name").eq("id", me.org_id).single(),
-    execQuery,
-    supabase.from("credit_entries").select("user_id, month, credits").gte("month", earliest),
+  // The Best Executive leaderboard is an org-wide ranking everyone can see.
+  // We compute it with the service-role client so executives (whose RLS only
+  // exposes their own rows) still see the full ranking — but only the ranking
+  // is rendered, never peers' raw ledgers.
+  const admin = createAdmin();
+  const [execRes, entriesRes] = await Promise.all([
+    admin
+      .from("users")
+      .select("id, name, current_tier")
+      .eq("org_id", me.org_id)
+      .eq("role", "executive")
+      .eq("active", true),
+    admin.from("credit_entries").select("user_id, month, credits").eq("org_id", me.org_id).gte("month", earliest),
   ]);
 
-  const orgName = orgRes.data?.name as string | undefined;
   const execs = (execRes.data ?? []) as Pick<AppUser, "id" | "name" | "current_tier">[];
   const entries = (entriesRes.data ?? []) as { user_id: string; month: string; credits: number }[];
 
@@ -58,15 +57,30 @@ export default async function LeaderboardPage() {
     }))
     .sort((a, b) => b.total6mo - a.total6mo);
 
+  const myRank = rows.findIndex((r) => r.userId === me.id) + 1;
+
   return (
     <div className="min-h-screen bg-slate-100">
       <DashboardHeader user={me} orgName={orgName} />
-      <main className="mx-auto max-w-3xl px-4 py-6">
+      <main className="mx-auto max-w-3xl space-y-4 px-4 py-6">
+        {me.role === "executive" && myRank > 0 && (
+          <Card>
+            <p className="text-sm text-slate-600">
+              Your rank:{" "}
+              <span className="text-lg font-bold text-slate-900">#{myRank}</span>{" "}
+              of {rows.length} · {totals.get(me.id) ?? 0} credits over 6 months
+            </p>
+          </Card>
+        )}
         <Card
           title="Best Executive leaderboard"
           subtitle="6-month cumulative credits — top performer is the Best Executive Award nominee (§5.4)"
         >
-          <Leaderboard rows={rows} />
+          <Leaderboard
+            rows={rows}
+            highlightUserId={me.id}
+            linkProfiles={me.role !== "executive"}
+          />
         </Card>
       </main>
     </div>

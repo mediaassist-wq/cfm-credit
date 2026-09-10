@@ -25,15 +25,13 @@ export function DashboardHeader({ user, orgName }: { user: AppUser; orgName?: st
             <Link href={homePathForRole(user.role)} className="hover:text-slate-900">
               Dashboard
             </Link>
+            <Link href="/leaderboard" className="hover:text-slate-900">
+              Leaderboard
+            </Link>
             {(user.role === "management" || user.role === "pm") && (
-              <>
-                <Link href="/leaderboard" className="hover:text-slate-900">
-                  Leaderboard
-                </Link>
-                <Link href="/editors" className="hover:text-slate-900">
-                  Editors
-                </Link>
-              </>
+              <Link href="/editors" className="hover:text-slate-900">
+                Editors
+              </Link>
             )}
             <Link href="/policy" className="hover:text-slate-900">
               Policy

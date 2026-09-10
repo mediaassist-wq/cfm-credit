@@ -1,0 +1,11 @@
+import pg from "pg";
+const c = new pg.Client({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+await c.connect();
+const col = await c.query("select 1 from information_schema.columns where table_name='users' and column_name='avatar_url'");
+console.log("avatar_url column:", col.rowCount ? "present" : "MISSING");
+const b = await c.query("select 1 from storage.buckets where id='avatars'");
+console.log("avatars bucket:", b.rowCount ? "present" : "MISSING");
+const e = await c.query("select name, email, active from users where role='executive' and email like '%@cfm.team' order by name");
+console.log(`editors (${e.rowCount}):`);
+e.rows.forEach((r) => console.log("  -", r.name, r.email, r.active ? "" : "(inactive)"));
+await c.end();
