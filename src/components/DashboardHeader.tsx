@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { signOut } from "@/app/login/actions";
 import { homePathForRole } from "@/lib/auth";
+import { Avatar } from "@/components/Avatar";
 import type { AppUser } from "@/lib/types";
 
 const ROLE_LABEL: Record<AppUser["role"], string> = {
@@ -37,11 +38,17 @@ export function DashboardHeader({ user, orgName }: { user: AppUser; orgName?: st
             <Link href="/policy" className="hover:text-slate-900">
               Policy
             </Link>
+            <Link href="/account" className="hover:text-slate-900">
+              Account
+            </Link>
           </nav>
-          <div className="text-right">
-            <p className="text-sm font-medium text-slate-800">{user.name}</p>
-            <p className="text-xs text-slate-500">{ROLE_LABEL[user.role]}</p>
-          </div>
+          <Link href="/account" className="flex items-center gap-2" title="My account">
+            <div className="text-right">
+              <p className="text-sm font-medium text-slate-800">{user.name}</p>
+              <p className="text-xs text-slate-500">{ROLE_LABEL[user.role]}</p>
+            </div>
+            <Avatar name={user.name} url={user.avatar_url} size="sm" />
+          </Link>
           <form action={signOut}>
             <button
               type="submit"

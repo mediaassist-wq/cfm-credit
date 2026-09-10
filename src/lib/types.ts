@@ -23,6 +23,7 @@ export interface AppUser {
   // Management-controlled manual flags for Tier S eligibility (§4.5)
   mentoring_capable: boolean;
   moral_conduct: boolean;
+  avatar_url: string | null;
 }
 
 export interface CreditEntry {

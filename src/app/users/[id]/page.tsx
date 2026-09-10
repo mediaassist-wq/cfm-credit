@@ -9,6 +9,7 @@ import type { AppUser, CreditEntry, Flag, AttendanceRecord, TierHistory } from "
 import { DashboardHeader } from "@/components/DashboardHeader";
 import { Card } from "@/components/Card";
 import { TierBadge } from "@/components/TierBadge";
+import { Avatar } from "@/components/Avatar";
 import { changeTier, setEligibilityFlag } from "@/app/actions";
 
 export const dynamic = "force-dynamic";
@@ -62,6 +63,7 @@ export default async function ProfileDetail({ params }: { params: { id: string }
         {/* Header */}
         <Card>
           <div className="flex flex-wrap items-center gap-4">
+            <Avatar name={user.name} url={user.avatar_url} size="lg" />
             <TierBadge tier={user.current_tier} size="lg" />
             <div className="flex-1">
               <h1 className="text-xl font-semibold text-slate-900">{user.name}</h1>

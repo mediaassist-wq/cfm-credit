@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAdmin } from "@/lib/supabase/admin";
 import { getCurrentUser } from "@/lib/auth";
 import {
   BONUS_TYPES,
@@ -233,6 +234,117 @@ export async function changeTier(formData: FormData) {
 
   revalidatePath("/management");
   revalidatePath(`/users/${userId}`);
+}
+
+// ── Editor management (PM / Management) ─────────────────────────────────────
+
+/** Create a new editor (auth account + profile). PM/Management only. */
+export async function addEditor(formData: FormData) {
+  const me = await getCurrentUser();
+  if (me.role !== "management" && me.role !== "pm") throw new Error("Not allowed.");
+
+  const name = String(formData.get("name") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const password = String(formData.get("password") ?? "");
+
+  if (!name) throw new Error("Name is required.");
+  if (!email) throw new Error("Email is required.");
+  if (password.length < 6) throw new Error("Password must be at least 6 characters.");
+
+  const admin = createAdmin();
+
+  const { data: created, error: createErr } = await admin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+  });
+  if (createErr || !created?.user) {
+    throw new Error(createErr?.message ?? "Could not create the account (email may already exist).");
+  }
+  const userId = created.user.id;
+
+  const { error: profErr } = await admin.from("users").insert({
+    id: userId,
+    org_id: me.org_id,
+    name,
+    email,
+    role: "executive",
+    // A PM owns the editors they add; management leaves them unassigned.
+    pm_id: me.role === "pm" ? me.id : null,
+    current_tier: "D",
+    moral_conduct: true,
+  });
+  if (profErr) {
+    // Roll back the orphaned auth user so a retry can succeed.
+    await admin.auth.admin.deleteUser(userId);
+    throw new Error(profErr.message);
+  }
+
+  await admin.from("tier_history").insert({
+    org_id: me.org_id,
+    user_id: userId,
+    tier: "D",
+    reason: "initial",
+    created_by: me.id,
+  });
+
+  revalidatePath("/editors");
+  revalidatePath("/pm");
+}
+
+/** Deactivate or reactivate an editor. PM/Management only (must manage them). */
+export async function setEditorActive(formData: FormData) {
+  const me = await getCurrentUser();
+  const supabase = createClient();
+  const userId = String(formData.get("user_id") ?? "");
+  const active = String(formData.get("active") ?? "") === "true";
+
+  // RLS (users_update) already restricts this to management or the owning PM.
+  const { error } = await supabase.from("users").update({ active }).eq("id", userId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/editors");
+  revalidatePath("/pm");
+  revalidatePath("/management");
+}
+
+// ── Self-service profile ────────────────────────────────────────────────────
+
+/** Update a display name + avatar. Allowed for the user themselves or a manager. */
+export async function updateProfile(formData: FormData) {
+  const me = await getCurrentUser();
+  const userId = String(formData.get("user_id") ?? me.id);
+  const name = String(formData.get("name") ?? "").trim();
+  const avatarUrl = formData.get("avatar_url");
+
+  const isSelf = userId === me.id;
+  const canManage = me.role === "management" || me.role === "pm";
+  if (!isSelf && !canManage) throw new Error("Not allowed.");
+
+  const patch: Record<string, string | null> = {};
+  if (name) patch.name = name;
+  if (typeof avatarUrl === "string") patch.avatar_url = avatarUrl || null;
+  if (Object.keys(patch).length === 0) return;
+
+  // Service role: we enforce the who-can-edit check above and only touch
+  // name/avatar_url here (never role/tier).
+  const admin = createAdmin();
+  const { error } = await admin.from("users").update(patch).eq("id", userId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/account");
+  revalidatePath(`/users/${userId}`);
+  revalidatePath("/editors");
+}
+
+/** Change the signed-in user's own password. */
+export async function changePassword(formData: FormData) {
+  const supabase = createClient();
+  const password = String(formData.get("password") ?? "");
+  if (password.length < 6) throw new Error("Password must be at least 6 characters.");
+
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) throw new Error(error.message);
 }
 
 /** Management toggles the manual Tier S eligibility flags on an executive. */
