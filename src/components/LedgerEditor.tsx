@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { monthLabel } from "@/lib/dates";
 import { updateCreditEntry, deleteCreditEntry } from "@/app/actions";
@@ -28,6 +28,10 @@ export function LedgerEditor({
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState<string | null>(null);
+
+  useEffect(() => {
+    console.log("LEDGER_EDITOR_MOUNT", new Date().toISOString());
+  }, []);
 
   if (entries.length === 0) {
     return <p className="py-4 text-sm text-slate-400">No entries yet.</p>;
