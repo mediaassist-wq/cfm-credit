@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { TierBadge } from "@/components/TierBadge";
+import { Avatar } from "@/components/Avatar";
 import type { Tier } from "@/lib/tier-logic";
 
 export interface LeaderboardRow {
@@ -9,6 +10,7 @@ export interface LeaderboardRow {
   total6mo: number;
   thisMonth: number;
   monthsActive: number;
+  avatarUrl?: string | null;
 }
 
 const MEDAL = ["🥇", "🥈", "🥉"];
@@ -54,6 +56,7 @@ export function Leaderboard({
             <span className="w-7 text-center text-sm font-semibold text-slate-500">
               {i < 3 ? MEDAL[i] : i + 1}
             </span>
+            <Avatar name={r.name} url={r.avatarUrl} size="sm" />
             <TierBadge tier={r.tier} size="sm" />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">

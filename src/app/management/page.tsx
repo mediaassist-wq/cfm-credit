@@ -38,7 +38,7 @@ export default async function ManagementDashboard() {
     supabase.from("organizations").select("name").eq("id", user.org_id).single(),
     supabase
       .from("users")
-      .select("id, name, current_tier, join_date, mentoring_capable, moral_conduct")
+      .select("id, name, current_tier, join_date, mentoring_capable, moral_conduct, avatar_url")
       .eq("role", "executive")
       .eq("active", true),
     supabase.from("credit_entries").select("user_id, month, credits").gte("month", earliest),
@@ -48,7 +48,7 @@ export default async function ManagementDashboard() {
   const orgName = orgRes.data?.name as string | undefined;
   const execs = (execRes.data ?? []) as (Pick<
     AppUser,
-    "id" | "name" | "current_tier" | "join_date" | "mentoring_capable" | "moral_conduct"
+    "id" | "name" | "current_tier" | "join_date" | "mentoring_capable" | "moral_conduct" | "avatar_url"
   >)[];
   const entries = (entriesRes.data ?? []) as { user_id: string; month: string; credits: number }[];
   const flags = (flagsRes.data ?? []) as Flag[];
@@ -73,6 +73,7 @@ export default async function ManagementDashboard() {
       total6mo: totals.get(ex.id) ?? 0,
       thisMonth: 0,
       monthsActive: activeMonths.get(ex.id)?.size ?? 0,
+      avatarUrl: ex.avatar_url,
     }))
     .sort((a, b) => b.total6mo - a.total6mo);
 

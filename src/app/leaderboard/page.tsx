@@ -27,14 +27,17 @@ export default async function LeaderboardPage() {
   const [execRes, entriesRes] = await Promise.all([
     admin
       .from("users")
-      .select("id, name, current_tier")
+      .select("id, name, current_tier, avatar_url")
       .eq("org_id", me.org_id)
       .eq("role", "executive")
       .eq("active", true),
     admin.from("credit_entries").select("user_id, month, credits").eq("org_id", me.org_id).gte("month", earliest),
   ]);
 
-  const execs = (execRes.data ?? []) as Pick<AppUser, "id" | "name" | "current_tier">[];
+  const execs = (execRes.data ?? []) as Pick<
+    AppUser,
+    "id" | "name" | "current_tier" | "avatar_url"
+  >[];
   const entries = (entriesRes.data ?? []) as { user_id: string; month: string; credits: number }[];
 
   const totals = new Map<string, number>();
@@ -54,6 +57,7 @@ export default async function LeaderboardPage() {
       total6mo: totals.get(ex.id) ?? 0,
       thisMonth: 0,
       monthsActive: activeMonths.get(ex.id)?.size ?? 0,
+      avatarUrl: ex.avatar_url,
     }))
     .sort((a, b) => b.total6mo - a.total6mo);
 
