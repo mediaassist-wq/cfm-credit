@@ -10,7 +10,7 @@ import { DashboardHeader } from "@/components/DashboardHeader";
 import { Card } from "@/components/Card";
 import { TierBadge } from "@/components/TierBadge";
 import { Avatar } from "@/components/Avatar";
-import { changeTier, setEligibilityFlag } from "@/app/actions";
+import { changeTier, setEligibilityFlag, removeFlag } from "@/app/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +33,7 @@ export default async function ProfileDetail({ params }: { params: { id: string }
 
   const [ledgerRes, flagsRes, attRes, tierRes, orgRes] = await Promise.all([
     supabase.from("credit_entries").select("*").eq("user_id", user.id).order("month", { ascending: false }).order("created_at", { ascending: false }),
-    supabase.from("flags").select("*").eq("user_id", user.id).order("issued_at", { ascending: false }),
+    supabase.from("flags").select("*").eq("user_id", user.id).eq("voided", false).order("issued_at", { ascending: false }),
     supabase.from("attendance_records").select("*").eq("user_id", user.id).order("month", { ascending: false }),
     supabase.from("tier_history").select("*").eq("user_id", user.id).order("effective_date", { ascending: false }),
     supabase.from("organizations").select("name").eq("id", user.org_id).single(),
@@ -211,13 +211,23 @@ export default async function ProfileDetail({ params }: { params: { id: string }
                 <ul className="space-y-2">
                   {flags.map((f) => (
                     <li key={f.id} className="rounded-lg bg-slate-50 px-3 py-2">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between gap-2">
                         <span className={`text-xs font-semibold ${f.type === "red" ? "text-red-700" : "text-amber-700"}`}>
                           {f.type === "red" ? "Red flag (−6)" : "Yellow flag (−3)"}
                         </span>
-                        <span className="text-xs text-slate-400">
-                          {new Date(f.issued_at).toLocaleDateString("en-US")}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-slate-400">
+                            {new Date(f.issued_at).toLocaleDateString("en-US")}
+                          </span>
+                          {canManage && (
+                            <form action={removeFlag}>
+                              <input type="hidden" name="flag_id" value={f.id} />
+                              <button className="rounded border border-slate-300 px-1.5 py-0.5 text-[11px] text-slate-600 hover:bg-white">
+                                Remove
+                              </button>
+                            </form>
+                          )}
+                        </div>
                       </div>
                       <p className="mt-0.5 text-sm text-slate-700">{f.reason}</p>
                       {f.video_reference && <p className="text-xs text-slate-400">Ref: {f.video_reference}</p>}

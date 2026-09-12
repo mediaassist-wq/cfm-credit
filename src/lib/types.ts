@@ -48,6 +48,9 @@ export interface Flag {
   video_reference: string | null;
   issued_by: string;
   issued_at: string;
+  voided: boolean;
+  voided_at: string | null;
+  voided_by: string | null;
 }
 
 export interface AttendanceRecord {

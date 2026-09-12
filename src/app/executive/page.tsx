@@ -44,6 +44,7 @@ export default async function ExecutiveDashboard() {
         .from("flags")
         .select("*")
         .eq("user_id", user.id)
+        .eq("voided", false)
         .order("issued_at", { ascending: false }),
       supabase
         .from("attendance_records")

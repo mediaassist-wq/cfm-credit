@@ -132,6 +132,52 @@ export async function issueFlag(formData: FormData) {
   revalidatePath(`/users/${userId}`);
 }
 
+/**
+ * Remove (void) a flag and reverse its penalty. The flag is kept but marked
+ * voided (and hidden from lists); an offsetting +credit entry restores the
+ * points the flag deducted. PM/Management only.
+ */
+export async function removeFlag(formData: FormData) {
+  const me = await getCurrentUser();
+  const supabase = createClient();
+  const flagId = String(formData.get("flag_id") ?? "");
+
+  const { data: flag, error: fErr } = await supabase
+    .from("flags")
+    .select("*")
+    .eq("id", flagId)
+    .single();
+  if (fErr || !flag) throw new Error("Flag not found.");
+  if (flag.voided) return; // already removed
+
+  const { error: vErr } = await supabase
+    .from("flags")
+    .update({ voided: true, voided_at: new Date().toISOString(), voided_by: me.id })
+    .eq("id", flagId);
+  if (vErr) throw new Error(vErr.message);
+
+  // Reverse the penalty (yellow −3, red −6) with an offsetting entry.
+  const reversal = flag.type === "red" ? 6 : 3;
+  const month = new Date(flag.issued_at);
+  const monthStr = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, "0")}-01`;
+
+  const { error: cErr } = await supabase.from("credit_entries").insert({
+    org_id: me.org_id,
+    user_id: flag.user_id,
+    month: monthStr,
+    category: "adjustment",
+    subcategory: "flag_reversal",
+    credits: reversal,
+    note: `Removed ${flag.type} flag: ${flag.reason}`,
+    created_by: me.id,
+  });
+  if (cErr) throw new Error(cErr.message);
+
+  revalidatePath("/management");
+  revalidatePath("/pm");
+  revalidatePath(`/users/${flag.user_id}`);
+}
+
 /** Log a negative client review (−4 penalty) as a ledger entry. */
 export async function logNegativeReview(formData: FormData) {
   const me = await getCurrentUser();

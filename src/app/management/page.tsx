@@ -19,7 +19,7 @@ import {
   DeductPointsForm,
   type Member,
 } from "@/components/pm/PmForms";
-import { changeTier } from "@/app/actions";
+import { changeTier, removeFlag } from "@/app/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +42,7 @@ export default async function ManagementDashboard() {
       .eq("role", "executive")
       .eq("active", true),
     supabase.from("credit_entries").select("user_id, month, credits").gte("month", earliest),
-    supabase.from("flags").select("*").order("issued_at", { ascending: false }).limit(25),
+    supabase.from("flags").select("*").eq("voided", false).order("issued_at", { ascending: false }).limit(25),
   ]);
 
   const orgName = orgRes.data?.name as string | undefined;
@@ -172,13 +172,21 @@ export default async function ManagementDashboard() {
               <ul className="max-h-80 space-y-2 overflow-y-auto">
                 {flags.map((f) => (
                   <li key={f.id} className="rounded-lg bg-slate-50 px-3 py-2">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-2">
                       <span className={`text-xs font-semibold ${f.type === "red" ? "text-red-700" : "text-amber-700"}`}>
                         {nameById.get(f.user_id) ?? "Unknown"} · {f.type === "red" ? "Red (−6)" : "Yellow (−3)"}
                       </span>
-                      <span className="text-xs text-slate-400">
-                        {new Date(f.issued_at).toLocaleDateString("en-US")}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-400">
+                          {new Date(f.issued_at).toLocaleDateString("en-US")}
+                        </span>
+                        <form action={removeFlag}>
+                          <input type="hidden" name="flag_id" value={f.id} />
+                          <button className="rounded border border-slate-300 px-1.5 py-0.5 text-[11px] text-slate-600 hover:bg-white">
+                            Remove
+                          </button>
+                        </form>
+                      </div>
                     </div>
                     <p className="mt-0.5 text-sm text-slate-700">{f.reason}</p>
                   </li>
