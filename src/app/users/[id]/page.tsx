@@ -2,15 +2,20 @@ import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { monthLabel } from "@/lib/dates";
+import { monthLabel, firstOfMonth } from "@/lib/dates";
 import { TIERS, TIER_DEFS, type Tier } from "@/lib/tier-logic";
+import { CREDIT_CATEGORIES, type CreditCategory } from "@/lib/credit-rules";
 import type { AppUser, CreditEntry, Flag, AttendanceRecord, TierHistory } from "@/lib/types";
 
 import { DashboardHeader } from "@/components/DashboardHeader";
 import { Card } from "@/components/Card";
 import { TierBadge } from "@/components/TierBadge";
 import { Avatar } from "@/components/Avatar";
-import { changeTier, setEligibilityFlag, removeFlag } from "@/app/actions";
+import { changeTier, setEligibilityFlag, removeFlag, adjustPoints } from "@/app/actions";
+
+const CAT_LABEL = Object.fromEntries(
+  CREDIT_CATEGORIES.map((c) => [c.value, c.label]),
+) as Record<CreditCategory, string>;
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +54,15 @@ export default async function ProfileDetail({ params }: { params: { id: string }
   const canManage = me.role === "management" || me.role === "pm";
   const isMgmt = me.role === "management";
 
+  // This-month tally (for month-end reconciliation).
+  const thisMonth = firstOfMonth();
+  const monthEntries = ledger.filter((e) => e.month === thisMonth);
+  const monthNet = monthEntries.reduce((s, e) => s + e.credits, 0);
+  const monthByCat = new Map<CreditCategory, number>();
+  for (const e of monthEntries) {
+    monthByCat.set(e.category, (monthByCat.get(e.category) ?? 0) + e.credits);
+  }
+
   // Tier options a PM may assign (no S — management only).
   const tierOptions = isMgmt ? TIERS : TIERS.filter((t) => t !== "S");
 
@@ -78,6 +92,75 @@ export default async function ProfileDetail({ params }: { params: { id: string }
             </div>
           </div>
         </Card>
+
+        {/* This-month tally + month-end adjustment */}
+        {canManage && (
+          <Card title={`This month · ${monthLabel(thisMonth)}`} subtitle="Review the tally, then reconcile with an adjustment">
+            <div className="grid gap-6 md:grid-cols-2">
+              <div>
+                {monthEntries.length === 0 ? (
+                  <p className="py-4 text-sm text-slate-400">No entries this month yet.</p>
+                ) : (
+                  <ul className="space-y-1.5">
+                    {CREDIT_CATEGORIES.map(({ value }) => {
+                      if (!monthByCat.has(value)) return null;
+                      const sub = monthByCat.get(value)!;
+                      return (
+                        <li key={value} className="flex items-center justify-between text-sm">
+                          <span className="text-slate-600">{CAT_LABEL[value]}</span>
+                          <span className={sub < 0 ? "font-medium text-red-600" : "font-medium text-slate-800"}>
+                            {sub > 0 ? "+" : ""}{sub}
+                          </span>
+                        </li>
+                      );
+                    })}
+                    <li className="flex items-center justify-between border-t border-slate-200 pt-2 text-sm">
+                      <span className="font-semibold text-slate-900">Net this month</span>
+                      <span className="text-lg font-bold text-slate-900">{monthNet}</span>
+                    </li>
+                  </ul>
+                )}
+              </div>
+
+              <div className="rounded-xl bg-slate-50 p-4">
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Month-end adjustment
+                </h3>
+                <form action={adjustPoints} className="space-y-2">
+                  <input type="hidden" name="user_id" value={user.id} />
+                  <input type="hidden" name="month" value={thisMonth.slice(0, 7)} />
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-600">
+                      Amount (use a minus sign to reduce, e.g. -5)
+                    </label>
+                    <input
+                      type="number"
+                      name="amount"
+                      required
+                      placeholder="e.g. 5 or -3"
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-600">Reason</label>
+                    <input
+                      name="note"
+                      required
+                      placeholder="e.g. month-end correction"
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500"
+                    />
+                  </div>
+                  <button className="w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">
+                    Apply adjustment
+                  </button>
+                </form>
+                <p className="mt-2 text-xs text-slate-400">
+                  This adds one adjustment entry to the ledger (nothing is edited or deleted).
+                </p>
+              </div>
+            </div>
+          </Card>
+        )}
 
         {/* Management / PM controls */}
         {canManage && (

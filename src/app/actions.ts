@@ -105,6 +105,41 @@ export async function deductPoints(formData: FormData) {
   revalidatePath(`/users/${userId}`);
 }
 
+/**
+ * Month-end reconciliation: append a signed adjustment (+/-) to an executive's
+ * month with a reason. Positive adds points, negative removes them. Keeps the
+ * ledger immutable (this is a new offsetting entry, not an edit). PM/Management.
+ */
+export async function adjustPoints(formData: FormData) {
+  const me = await getCurrentUser();
+  if (me.role !== "management" && me.role !== "pm") throw new Error("Not allowed.");
+  const supabase = createClient();
+
+  const userId = String(formData.get("user_id") ?? "");
+  const amount = Math.trunc(Number(formData.get("amount") ?? 0));
+  const reason = String(formData.get("note") ?? "").trim();
+  const month = monthToFirst(formData.get("month") as string | null);
+
+  if (!amount) throw new Error("Enter a non-zero amount (use a minus sign to reduce).");
+  if (!reason) throw new Error("A reason is required for an adjustment.");
+
+  const { error } = await supabase.from("credit_entries").insert({
+    org_id: me.org_id,
+    user_id: userId,
+    month,
+    category: "adjustment",
+    subcategory: "month_end_adjustment",
+    credits: amount,
+    note: reason,
+    created_by: me.id,
+  });
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/users/${userId}`);
+  revalidatePath("/pm");
+  revalidatePath("/management");
+}
+
 /** Issue a flag. A DB trigger auto-deducts the penalty into the ledger. */
 export async function issueFlag(formData: FormData) {
   const me = await getCurrentUser();
