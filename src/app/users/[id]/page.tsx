@@ -11,6 +11,7 @@ import { DashboardHeader } from "@/components/DashboardHeader";
 import { Card } from "@/components/Card";
 import { TierBadge } from "@/components/TierBadge";
 import { Avatar } from "@/components/Avatar";
+import { LedgerEditor } from "@/components/LedgerEditor";
 import { changeTier, setEligibilityFlag, removeFlag, adjustPoints } from "@/app/actions";
 
 const CAT_LABEL = Object.fromEntries(
@@ -230,31 +231,11 @@ export default async function ProfileDetail({ params }: { params: { id: string }
 
         <div className="grid gap-5 lg:grid-cols-2">
           {/* Full ledger */}
-          <Card title="Credit ledger" subtitle={`${ledger.length} entries (immutable)`}>
-            <div className="max-h-96 overflow-y-auto">
-              <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-white text-left text-xs uppercase text-slate-400">
-                  <tr>
-                    <th className="py-1.5">Month</th>
-                    <th>Category</th>
-                    <th>Item</th>
-                    <th className="text-right">Credits</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {ledger.map((e) => (
-                    <tr key={e.id}>
-                      <td className="py-1.5 text-slate-500">{monthLabel(e.month)}</td>
-                      <td className="capitalize text-slate-600">{e.category}</td>
-                      <td className="text-slate-700">{e.subcategory ?? "—"}</td>
-                      <td className={`text-right font-medium ${e.credits < 0 ? "text-red-600" : "text-slate-800"}`}>
-                        {e.credits > 0 ? "+" : ""}{e.credits}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <Card
+            title="Credit ledger"
+            subtitle={canManage ? `${ledger.length} entries · edit or delete any` : `${ledger.length} entries`}
+          >
+            <LedgerEditor entries={ledger} userId={user.id} canManage={canManage} />
           </Card>
 
           <div className="space-y-5">

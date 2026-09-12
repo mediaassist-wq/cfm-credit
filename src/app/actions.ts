@@ -140,6 +140,46 @@ export async function adjustPoints(formData: FormData) {
   revalidatePath("/management");
 }
 
+/** Edit a ledger entry (credits, item label, note). PM/Management only. */
+export async function updateCreditEntry(formData: FormData) {
+  const me = await getCurrentUser();
+  if (me.role !== "management" && me.role !== "pm") throw new Error("Not allowed.");
+  const supabase = createClient();
+
+  const id = String(formData.get("id") ?? "");
+  const userId = String(formData.get("user_id") ?? "");
+  const credits = Math.trunc(Number(formData.get("credits") ?? 0));
+  const subcategory = String(formData.get("subcategory") ?? "").trim() || null;
+  const note = String(formData.get("note") ?? "").trim() || null;
+
+  const { error } = await supabase
+    .from("credit_entries")
+    .update({ credits, subcategory, note })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/users/${userId}`);
+  revalidatePath("/pm");
+  revalidatePath("/management");
+}
+
+/** Delete a ledger entry. PM/Management only. */
+export async function deleteCreditEntry(formData: FormData) {
+  const me = await getCurrentUser();
+  if (me.role !== "management" && me.role !== "pm") throw new Error("Not allowed.");
+  const supabase = createClient();
+
+  const id = String(formData.get("id") ?? "");
+  const userId = String(formData.get("user_id") ?? "");
+
+  const { error } = await supabase.from("credit_entries").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/users/${userId}`);
+  revalidatePath("/pm");
+  revalidatePath("/management");
+}
+
 /** Issue a flag. A DB trigger auto-deducts the penalty into the ledger. */
 export async function issueFlag(formData: FormData) {
   const me = await getCurrentUser();
