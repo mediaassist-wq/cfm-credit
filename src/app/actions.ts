@@ -443,6 +443,33 @@ export async function deleteEditor(formData: FormData) {
   revalidatePath("/pm");
 }
 
+/**
+ * Set a new password for an editor who forgot theirs. Management, or the
+ * owning PM. The editor can change it again from their Account page.
+ */
+export async function resetEditorPassword(formData: FormData) {
+  const me = await getCurrentUser();
+  const supabase = createClient();
+
+  const userId = String(formData.get("user_id") ?? "");
+  const password = String(formData.get("password") ?? "");
+  if (password.length < 6) throw new Error("Password must be at least 6 characters.");
+
+  const { data: target } = await supabase
+    .from("users")
+    .select("id, role, pm_id")
+    .eq("id", userId)
+    .single();
+  if (!target) throw new Error("Editor not found.");
+
+  const allowed = me.role === "management" || (me.role === "pm" && target.pm_id === me.id);
+  if (!allowed) throw new Error("Not allowed.");
+
+  const admin = createAdmin();
+  const { error } = await admin.auth.admin.updateUserById(userId, { password });
+  if (error) throw new Error(error.message);
+}
+
 /** Deactivate or reactivate an editor. PM/Management only (must manage them). */
 export async function setEditorActive(formData: FormData) {
   const me = await getCurrentUser();

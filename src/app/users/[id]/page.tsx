@@ -12,6 +12,7 @@ import { Card } from "@/components/Card";
 import { TierBadge } from "@/components/TierBadge";
 import { Avatar } from "@/components/Avatar";
 import { LedgerEditor } from "@/components/LedgerEditor";
+import { ResetPasswordForm } from "@/components/ResetPasswordForm";
 import { changeTier, setEligibilityFlag, removeFlag, adjustPoints } from "@/app/actions";
 
 const CAT_LABEL = Object.fromEntries(
@@ -204,6 +205,10 @@ export default async function ProfileDetail({ params }: { params: { id: string }
                 </div>
               </Card>
             )}
+
+            <Card title="Reset password" subtitle="If this editor forgot their password">
+              <ResetPasswordForm userId={user.id} name={user.name} />
+            </Card>
           </div>
         )}
 
