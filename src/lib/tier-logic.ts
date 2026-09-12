@@ -87,6 +87,13 @@ export interface CycleInput {
   // manual Management-controlled flags for S
   mentoringCapable: boolean;
   moralConduct: boolean;
+  /**
+   * Overrides the "all production types delivered" check (§4.5, Tier B+).
+   * Set this when entries are logged as free-text project names rather than
+   * SOP production types, so the condition can't be derived automatically and
+   * is confirmed by a manager instead.
+   */
+  productionVarietyOk?: boolean;
 }
 
 export type CycleOutcome =
@@ -106,9 +113,11 @@ function meetsExtraConditions(
   const attendanceStable = months.every(
     (m) => m.lateDays <= 5 && m.unexcusedAbsences === 0,
   );
-  const allProductionDelivered = months.some((m) =>
-    REQUIRED_PRODUCTION_KEYS.every((k) => m.deliveredProductionKeys.includes(k)),
-  );
+  const allProductionDelivered =
+    input.productionVarietyOk ??
+    months.some((m) =>
+      REQUIRED_PRODUCTION_KEYS.every((k) => m.deliveredProductionKeys.includes(k)),
+    );
 
   if (tier === "B" || tier === "A" || tier === "S") {
     if (!attendanceStable) failed.push("Attendance not stable (≤5 late, 0 unexcused)");

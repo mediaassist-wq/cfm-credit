@@ -29,9 +29,14 @@ export function DashboardHeader({ user, orgName }: { user: AppUser; orgName?: st
               Leaderboard
             </Link>
             {(user.role === "management" || user.role === "pm") && (
-              <Link href="/editors" className="hover:text-slate-900">
-                Editors
-              </Link>
+              <>
+                <Link href="/editors" className="hover:text-slate-900">
+                  Editors
+                </Link>
+                <Link href="/tier-review" className="hover:text-slate-900">
+                  Tier review
+                </Link>
+              </>
             )}
             <Link href="/policy" className="hover:text-slate-900">
               Policy
