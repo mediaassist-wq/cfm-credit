@@ -9,6 +9,7 @@ import type { AppUser } from "@/lib/types";
 import { DashboardHeader } from "@/components/DashboardHeader";
 import { Card } from "@/components/Card";
 import { Avatar } from "@/components/Avatar";
+import { DeleteEditorButton } from "@/components/DeleteEditorButton";
 import { addEditor, setEditorActive } from "@/app/actions";
 
 export const dynamic = "force-dynamic";
@@ -92,19 +93,22 @@ export default async function EditorsPage() {
                   <span className="w-10 text-right text-sm font-semibold text-slate-800">
                     {monthTotals.get(ex.id) ?? 0}
                   </span>
-                  <form action={setEditorActive}>
-                    <input type="hidden" name="user_id" value={ex.id} />
-                    <input type="hidden" name="active" value={(!ex.active).toString()} />
-                    <button
-                      className={`rounded-md border px-2 py-1 text-xs transition ${
-                        ex.active
-                          ? "border-red-200 text-red-600 hover:bg-red-50"
-                          : "border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-                      }`}
-                    >
-                      {ex.active ? "Remove" : "Restore"}
-                    </button>
-                  </form>
+                  <div className="flex items-center gap-1.5">
+                    <form action={setEditorActive}>
+                      <input type="hidden" name="user_id" value={ex.id} />
+                      <input type="hidden" name="active" value={(!ex.active).toString()} />
+                      <button
+                        className={`rounded-md border px-2 py-1 text-xs transition ${
+                          ex.active
+                            ? "border-red-200 text-red-600 hover:bg-red-50"
+                            : "border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                        }`}
+                      >
+                        {ex.active ? "Remove" : "Restore"}
+                      </button>
+                    </form>
+                    {!ex.active && <DeleteEditorButton userId={ex.id} name={ex.name} />}
+                  </div>
                 </li>
               ))}
             </ul>

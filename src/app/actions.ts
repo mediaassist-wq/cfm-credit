@@ -413,6 +413,36 @@ export async function addEditor(formData: FormData) {
   revalidatePath("/pm");
 }
 
+/**
+ * Permanently delete an editor and ALL their data (credits, flags, attendance,
+ * tier history) via cascade. Irreversible. Management, or the owning PM.
+ */
+export async function deleteEditor(formData: FormData) {
+  const me = await getCurrentUser();
+  const supabase = createClient();
+  const userId = String(formData.get("user_id") ?? "");
+
+  const { data: target } = await supabase
+    .from("users")
+    .select("id, role, pm_id")
+    .eq("id", userId)
+    .single();
+  if (!target) throw new Error("Editor not found.");
+
+  const allowed = me.role === "management" || (me.role === "pm" && target.pm_id === me.id);
+  if (!allowed) throw new Error("Not allowed.");
+  if (target.role !== "executive") throw new Error("Only editors can be deleted here.");
+
+  // Deleting the auth user cascades to public.users and all their child rows.
+  const admin = createAdmin();
+  const { error } = await admin.auth.admin.deleteUser(userId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/editors");
+  revalidatePath("/management");
+  revalidatePath("/pm");
+}
+
 /** Deactivate or reactivate an editor. PM/Management only (must manage them). */
 export async function setEditorActive(formData: FormData) {
   const me = await getCurrentUser();
